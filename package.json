@@ -1,0 +1,25 @@
+{
+  "name": "github-jumbotron",
+  "version": "0.1.0",
+  "description": "Turn your github streak into a customizable jumbotron",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seve/github-jumbotron.git"
+  },
+  "keywords": [
+    "github",
+    "streak",
+    "commit",
+    "customize"
+  ],
+  "author": "sevebadajoz",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/seve/github-jumbotron/issues"
+  },
+  "homepage": "https://github.com/seve/github-jumbotron#readme"
+}
