@@ -2,7 +2,14 @@
   "name": "github-jumbotron",
   "version": "0.1.0",
   "description": "Turn your github streak into a customizable jumbotron",
-  "main": "index.js",
+  "main": "src/index.js",
+  "bin": {
+    "github-jumbotron": "bin/create-project",
+    "create-project": "bin/create-project"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -14,12 +21,17 @@
     "github",
     "streak",
     "commit",
-    "customize"
+    "customize",
+    "cli"
   ],
   "author": "sevebadajoz",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/seve/github-jumbotron/issues"
   },
-  "homepage": "https://github.com/seve/github-jumbotron#readme"
+  "homepage": "https://github.com/seve/github-jumbotron#readme",
+  "dependencies": {
+    "arg": "^4.1.2",
+    "inquirer": "^7.0.0"
+  }
 }
