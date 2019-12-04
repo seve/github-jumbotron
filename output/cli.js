@@ -89,35 +89,37 @@ async function promptForMissingOptions(options) {
         ...answers,
         ...(await inquirer_1.default.prompt(questions))
     };
-    try {
-        const gitTest = await execa_1.default(`if [ -d .git ]; then
+    while (questions.length > 0) {
+        try {
+            const gitTest = await execa_1.default(`if [ -d .git ]; then
       echo 0;
     else
       echo 1;
     fi;`, {
-            cwd: answers.directory,
-            shell: true
-        });
-        questions.length = 0;
-        if (gitTest.stdout === "1") {
-            questions.push({
-                type: "confirm",
-                name: "init",
-                message: "Selected directory was not a git repo. Initalize one?",
-                default: true
+                cwd: answers.directory,
+                shell: true
             });
+            questions.length = 0;
+            if (gitTest.stdout === "1") {
+                questions.push({
+                    type: "confirm",
+                    name: "init",
+                    message: "Selected directory was not a git repo. Initalize one?",
+                    default: true
+                });
+            }
         }
-    }
-    catch (error) {
-        if (error.code === "ENOENT") {
-            console.log("This directory does not exist. Try again.");
+        catch (error) {
+            if (error.code === "ENOENT") {
+                console.log("This directory does not exist. Try again.");
+            }
         }
-    }
-    finally {
-        answers = {
-            ...answers,
-            ...(await inquirer_1.default.prompt(questions))
-        };
+        finally {
+            answers = {
+                ...answers,
+                ...(await inquirer_1.default.prompt(questions))
+            };
+        }
     }
     return {
         ...options,
