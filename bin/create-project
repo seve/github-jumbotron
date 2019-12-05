@@ -1,3 +1,4 @@
 #!/usr/bin/env node
 
-require("../output/cli").cli(process.argv);
+require("../output/cli").default(process.argv)
+
