@@ -1,3 +1,4 @@
+// ➜  ~ GIT_AUTHOR_DATE='Fri Jul 26 19:32:10 2013 -0400' GIT_COMMITTER_DATE='Fri Jul 26 19:32:10 2013 -0400' git commit --allow-empty --allow-empty-message -m ""
 import arg from "arg";
 import inquirer from "inquirer";
 import fuzzypath from "inquirer-fuzzy-path";
@@ -11,11 +12,13 @@ interface Options {
   git: boolean;
   runInstall: boolean;
   dir: string;
-  directory: string;
+  currDir: boolean;
   init: boolean;
 }
 
 function parseArgumentsIntoOptions(rawArgs: Array<string>): Options {
+  console.log(rawArgs);
+
   const args = arg(
     {
       "--dir": String,
@@ -23,10 +26,12 @@ function parseArgumentsIntoOptions(rawArgs: Array<string>): Options {
       "--yes": Boolean,
       "--install": Boolean,
       "--init": Boolean,
+      "--current-dir": Boolean,
       "-g": "--git",
       "-y": "--yes",
       "-d": "--dir",
-      "-i": "--init"
+      "-i": "--init",
+      "-cd": "--current-dir"
     },
     {
       argv: rawArgs.slice(2)
@@ -37,8 +42,8 @@ function parseArgumentsIntoOptions(rawArgs: Array<string>): Options {
     git: args["--git"] || false,
     template: args._[0],
     runInstall: args["--install"] || false,
+    currDir: args["--current-dir"] || false,
     dir: args._[1],
-    directory: args._[2],
     init: args["--init"] || false
   };
 }
@@ -54,53 +59,52 @@ async function promptForMissingOptions(options: Options): Promise<Options> {
   }
   // CLEAR THE TERMINAL
   process.stdout.write("\x1bc");
-  const questions = [];
-  if (!options.init) {
-    questions.push({
-      type: "list",
-      name: "dir",
-      message: "Choose where to create/find git repository",
-      choices: [`Current Directory(${currDir})`, "Choose Directory"],
-      default: `Current Directory(${currDir})`
-    });
-  }
-  // if (!options.template) {
-  //   questions.push({
-  //     type: "list",
-  //     name: "template",
-  //     message: "Please choose which project template to use",
-  //     choices: ["Javascript", "Typescript"],
-  //     default: defaultTemplate
-  //   });
-  // }
 
-  // if (!options.git) {
-  //   questions.push({
-  //     type: "confirm",
-  //     name: "git",
-  //     message: "Initialize a git repository?",
-  //     default: false
-  //   });
-  // }
-  let answers = await inquirer.prompt<Options>(questions);
-  questions.length = 0;
-  if (answers.dir === "Choose Directory") {
-    questions.push({
-      type: "fuzzypath",
-      name: "directory",
-      message: "Give the absolute path to the directory",
-      itemType: "directory",
-      rootPath: currDir,
-      suggestOnly: true
-    });
-  } else {
-    answers.directory = currDir;
-  }
-  answers = {
-    ...answers,
-    ...(await inquirer.prompt<Options>(questions))
-  };
-  while (questions.length > 0) {
+  let gitDirectoryFound = false;
+  let answers = <Options>{};
+
+  /* eslint-disable no-await-in-loop */
+
+  while (!gitDirectoryFound) {
+    const questions = [];
+
+    if (!options.currDir) {
+      questions.push({
+        type: "list",
+        name: "currDir",
+        message: "Choose where to create/find git repository",
+        choices: [`Current Directory(${currDir})`, "Choose Directory"],
+        default: `Current Directory(${currDir})`
+      });
+    }
+
+    const questionAnswer = await inquirer.prompt<any>(questions); // Ask user curr directory or input
+    questions.length = 0; // Remove curr directory question
+
+    answers = {
+      ...answers,
+      currDir: questionAnswer.currDir === `Current Directory(${currDir})`
+    };
+
+    if (!answers.currDir) {
+      questions.push({
+        type: "fuzzypath",
+        name: "dir",
+        message: "Give the absolute path to the directory",
+        itemType: "directory",
+        rootPath: currDir,
+        suggestOnly: true
+      });
+
+      answers = {
+        ...answers,
+        ...(await inquirer.prompt<Options>(questions)) // Ask user for to input directory
+      };
+      questions.length = 0; // If an error is not thrown delete the absolute path question
+    } else {
+      answers.dir = currDir; // Set curr directory if not choosing directory
+    }
+
     try {
       const gitTest = await execa(
         `if [ -d .git ]; then
@@ -109,31 +113,49 @@ async function promptForMissingOptions(options: Options): Promise<Options> {
       echo 1;
     fi;`,
         {
-          cwd: answers.directory,
+          cwd: answers.dir,
           shell: true
         }
       );
-      questions.length = 0;
 
       if (gitTest.stdout === "1") {
         questions.push({
           type: "confirm",
           name: "init",
-          message: "Selected directory was not a git repo. Initalize one?",
+          message: "Selected directory was not a git repo. Initalize one here?",
           default: true
         });
+      } else {
+        gitDirectoryFound = true;
       }
     } catch (error) {
       if (error.code === "ENOENT") {
         console.log("This directory does not exist. Try again.");
+        answers.dir = "";
+      } else {
+        console.log("ERROR:", error);
       }
     } finally {
       answers = {
         ...answers,
-        ...(await inquirer.prompt<Options>(questions))
+        ...(await inquirer.prompt<Options>(questions)) // Ask if user wants to iniatilize a git repo
       };
+      questions.length = 0; // Remove the git init question
+
+      if (
+        !gitDirectoryFound &&
+        (answers.init === false || answers.dir === "")
+      ) {
+        // If the user doesn't want to initialize a repo or incorrectly selected a directory
+        // Reset the answers and start from the beginning
+        answers.currDir = false;
+      } else {
+        // create git directory
+        gitDirectoryFound = true;
+      }
     }
   }
+  /* eslint-enable no-await-in-loop */
 
   return {
     ...options,
@@ -143,7 +165,8 @@ async function promptForMissingOptions(options: Options): Promise<Options> {
     init: options.init || answers.init
   };
 }
-export async function cli(args: Array<string>) {
+
+export default async (args: Array<string>): Promise<void> => {
   let options = parseArgumentsIntoOptions(args);
   try {
     options = await promptForMissingOptions(options);
@@ -151,4 +174,4 @@ export async function cli(args: Array<string>) {
     console.log(error);
   }
   console.log(options);
-}
+};
